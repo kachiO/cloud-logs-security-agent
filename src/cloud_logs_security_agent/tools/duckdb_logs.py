@@ -5,7 +5,7 @@ These tools provide the agent with the ability to search and retrieve CloudTrail
 
 import duckdb
 import json
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
