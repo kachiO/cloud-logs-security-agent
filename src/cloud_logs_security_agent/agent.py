@@ -110,6 +110,23 @@ class CloudTrailAgent:
             logger.error(f"Analysis failed: {e}")
             return f"Analysis failed: {str(e)}"
     
+    def analyze_with_metrics(self, query: str):
+        """Analyze CloudTrail logs and return both response and metrics.
+        
+        Args:
+            query: Security analysis query
+            
+        Returns:
+            Agent result with message and metrics
+        """
+        try:
+            result = self.agent(query)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}")
+            raise
+    
     async def analyze_async(self, query: str) -> str:
         """Async version of analyze method.
         
@@ -126,6 +143,23 @@ class CloudTrailAgent:
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
             return f"Analysis failed: {str(e)}"
+    
+    async def analyze_async_with_metrics(self, query: str):
+        """Async version that returns both response and metrics.
+        
+        Args:
+            query: Security analysis query
+            
+        Returns:
+            Agent result with message and metrics
+        """
+        try:
+            result = await self.agent.invoke_async(query)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}")
+            raise
     
     def get_partitions(self) -> list:
         """Get available DuckDB partition files.

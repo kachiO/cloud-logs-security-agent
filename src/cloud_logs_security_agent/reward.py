@@ -16,17 +16,19 @@ class RewardComponent(Enum):
     SPECIFICITY = "specificity"
     SECURITY_INSIGHT = "security_insight"
     RESPONSE_TIME = "response_time"
+    EFFICIENCY = "efficiency"
 
 
 @dataclass
 class RewardWeights:
     """Weights for different reward components."""
 
-    correctness: float = 0.4
+    correctness: float = 0.35
     completeness: float = 0.2
     specificity: float = 0.15
     security_insight: float = 0.15
     response_time: float = 0.1
+    efficiency: float = 0.05
 
     def __post_init__(self):
         """Validate weights sum to 1.0."""
@@ -36,6 +38,7 @@ class RewardWeights:
             + self.specificity
             + self.security_insight
             + self.response_time
+            + self.efficiency
         )
         if abs(total - 1.0) > 0.001:
             raise ValueError(f"Weights must sum to 1.0, got {total}")
@@ -50,6 +53,7 @@ class RewardBreakdown:
     specificity_score: float
     security_insight_score: float
     response_time_score: float
+    efficiency_score: float
     total_score: float
     explanation: str
 
@@ -66,11 +70,12 @@ class CloudTrailRewardFunction:
         """
         if equal_weights:
             self.weights = RewardWeights(
-                correctness=0.2,
-                completeness=0.2,
-                specificity=0.2,
-                security_insight=0.2,
-                response_time=0.2
+                correctness=1/6,
+                completeness=1/6,
+                specificity=1/6,
+                security_insight=1/6,
+                response_time=1/6,
+                efficiency=1/6
             )
         else:
             self.weights = weights or RewardWeights()
@@ -81,6 +86,7 @@ class CloudTrailRewardFunction:
         response_time: float,
         question_type: str,
         difficulty: str,
+        agent_metrics: Dict[str, Any] = None,
     ) -> RewardBreakdown:
         """Calculate reward score for an agent response.
 
@@ -89,6 +95,7 @@ class CloudTrailRewardFunction:
             response_time: Time taken to respond
             question_type: Type of question (overview, services, errors, etc.)
             difficulty: Difficulty level (easy, medium, hard)
+            agent_metrics: Optional metrics from agent execution (tool calls, cycles, etc.)
 
         Returns:
             Detailed reward breakdown
@@ -108,6 +115,9 @@ class CloudTrailRewardFunction:
         response_time_score = self._calculate_response_time_score(
             response_time, difficulty
         )
+        efficiency_score = self._calculate_efficiency_score(
+            agent_metrics or {}, difficulty
+        )
 
         # Calculate weighted total
         total_score = (
@@ -116,6 +126,7 @@ class CloudTrailRewardFunction:
             + specificity_score * self.weights.specificity
             + security_insight_score * self.weights.security_insight
             + response_time_score * self.weights.response_time
+            + efficiency_score * self.weights.efficiency
         )
 
         # Generate explanation
@@ -125,6 +136,7 @@ class CloudTrailRewardFunction:
             specificity_score,
             security_insight_score,
             response_time_score,
+            efficiency_score,
             total_score,
         )
 
@@ -134,6 +146,7 @@ class CloudTrailRewardFunction:
             specificity_score=specificity_score,
             security_insight_score=security_insight_score,
             response_time_score=response_time_score,
+            efficiency_score=efficiency_score,
             total_score=total_score,
             explanation=explanation,
         )
@@ -272,6 +285,50 @@ class CloudTrailRewardFunction:
             # Minimum score for very slow responses
             return 0.1
 
+    def _calculate_efficiency_score(
+        self, agent_metrics: Dict[str, Any], difficulty: str
+    ) -> float:
+        """Calculate efficiency component score based on tool usage and reasoning cycles.
+
+        Args:
+            agent_metrics: Agent execution metrics (tool calls, cycles, etc.)
+            difficulty: Difficulty level of the question
+
+        Returns:
+            Efficiency score (0-1)
+        """
+        # Extract metrics with defaults
+        reasoning_cycles = agent_metrics.get("reasoning", {}).get("cycles", 1)
+        tool_calls = agent_metrics.get("tools", {}).get("total_calls", 1)
+        tools_per_cycle = agent_metrics.get("tools", {}).get("calls_per_cycle", 1.0)
+
+        # Define efficiency targets by difficulty
+        efficiency_targets = {
+            "easy": {"max_cycles": 2, "max_tools": 3, "max_tools_per_cycle": 2.0},
+            "medium": {"max_cycles": 4, "max_tools": 6, "max_tools_per_cycle": 2.5},
+            "hard": {"max_cycles": 6, "max_tools": 10, "max_tools_per_cycle": 3.0}
+        }
+
+        targets = efficiency_targets.get(difficulty, efficiency_targets["medium"])
+
+        # Score reasoning cycles efficiency (fewer cycles = better)
+        cycle_score = min(1.0, targets["max_cycles"] / max(1, reasoning_cycles))
+
+        # Score tool usage efficiency (fewer tools = better, but not zero)
+        tool_score = min(1.0, targets["max_tools"] / max(1, tool_calls))
+
+        # Score tools per cycle efficiency (consistent tool usage per cycle)
+        tools_per_cycle_score = min(1.0, targets["max_tools_per_cycle"] / max(0.1, tools_per_cycle))
+
+        # Combined efficiency score
+        efficiency_score = (
+            cycle_score * 0.4 +
+            tool_score * 0.4 +
+            tools_per_cycle_score * 0.2
+        )
+
+        return efficiency_score
+
     def _generate_explanation(
         self,
         correctness: float,
@@ -279,6 +336,7 @@ class CloudTrailRewardFunction:
         specificity: float,
         security_insight: float,
         response_time: float,
+        efficiency: float,
         total: float,
     ) -> str:
         """Generate explanation of reward score.
@@ -289,6 +347,7 @@ class CloudTrailRewardFunction:
             specificity: Specificity score
             security_insight: Security insight score
             response_time: Response time score
+            efficiency: Efficiency score
             total: Total score
 
         Returns:
@@ -331,6 +390,13 @@ class CloudTrailRewardFunction:
         else:
             explanations.append("slow response time")
 
+        if efficiency >= 0.8:
+            explanations.append("excellent reasoning efficiency")
+        elif efficiency >= 0.5:
+            explanations.append("moderate reasoning efficiency")
+        else:
+            explanations.append("inefficient reasoning patterns")
+
         return f"Total score: {total:.3f}. " + ", ".join(explanations) + "."
 
 
@@ -342,29 +408,32 @@ def create_accuracy_focused_weights() -> RewardWeights:
         completeness=0.2,
         specificity=0.1,
         security_insight=0.05,
-        response_time=0.05,
+        response_time=0.03,
+        efficiency=0.02,
     )
 
 
 def create_speed_focused_weights() -> RewardWeights:
     """Create weights that balance accuracy with speed."""
     return RewardWeights(
-        correctness=0.4,
+        correctness=0.35,
         completeness=0.15,
-        specificity=0.15,
+        specificity=0.1,
         security_insight=0.1,
         response_time=0.2,
+        efficiency=0.1,
     )
 
 
 def create_security_focused_weights() -> RewardWeights:
     """Create weights that prioritize security insights."""
     return RewardWeights(
-        correctness=0.3,
+        correctness=0.25,
         completeness=0.2,
         specificity=0.15,
         security_insight=0.3,
         response_time=0.05,
+        efficiency=0.05,
     )
 
 
