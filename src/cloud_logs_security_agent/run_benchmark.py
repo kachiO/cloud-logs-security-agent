@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def main():
+async def run_benchmark():
     """Main function to run benchmark evaluation."""
     parser = argparse.ArgumentParser(description="Run CloudTrail agent benchmark")
     parser.add_argument(
@@ -233,5 +233,10 @@ def generate_detailed_report(results, summary, reward_fn, output_dir):
     logger.info(f"Detailed report saved to {report_file}")
 
 
+def main():
+    """Entry point for the benchmark CLI."""
+    asyncio.run(run_benchmark())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

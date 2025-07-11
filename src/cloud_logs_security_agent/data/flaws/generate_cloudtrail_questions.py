@@ -586,7 +586,8 @@ async def process_all_databases(
             continue
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the question generation CLI."""
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -659,3 +660,7 @@ if __name__ == "__main__":
             num_batches=args.num_batches,
         )
     )
+
+
+if __name__ == "__main__":
+    main()

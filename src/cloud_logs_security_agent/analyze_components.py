@@ -340,7 +340,8 @@ def analyze_benchmark_results(results_file: str, output_dir: str = "component_an
     print("Analysis complete!")
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the component analysis CLI."""
     import sys
     
     if len(sys.argv) != 2:
@@ -349,3 +350,7 @@ if __name__ == "__main__":
     
     results_file = sys.argv[1]
     analyze_benchmark_results(results_file)
+
+
+if __name__ == "__main__":
+    main()

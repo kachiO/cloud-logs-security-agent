@@ -29,6 +29,12 @@ dependencies = [
     "seaborn>=0.13.2",
 ]
 
+[project.scripts]
+benchmark = "cloud_logs_security_agent.run_benchmark:main"
+analyze-components = "cloud_logs_security_agent.analyze_components:main"
+validate-partitions = "cloud_logs_security_agent.data.flaws.validate_partitions:main"
+generate-questions = "cloud_logs_security_agent.data.flaws.generate_cloudtrail_questions:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
