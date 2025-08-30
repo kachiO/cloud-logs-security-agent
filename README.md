@@ -1,6 +1,6 @@
-# CloudTrail Security Agent Benchmarking System
+# CloudTrail Security Agent System
 
-A comprehensive benchmarking framework for evaluating AI agents on CloudTrail security analysis tasks. Built with [Strands SDK](https://strandsagents.com/) and MotherDuck MCP server for local DuckDB queries.
+A framework for evaluating AI agents on CloudTrail security analysis tasks. Built with [Strands SDK](https://strandsagents.com/) and MotherDuck MCP server for local DuckDB queries.
 
 ## Overview
 
